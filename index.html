@@ -104,7 +104,6 @@
       position: relative; z-index: 2;
     }
 
-    /* Lottie fallback container */
     #lottie-container { width: min(70vw,70vh); height: min(70vw,70vh); position: absolute; display: none; }
   </style>
 </head>
@@ -117,39 +116,22 @@
 <div id="pulsar-section" class="content">
   <div id="pulsar-sticky">
 
-    <!-- Canvas-drawn pulsar -->
     <canvas id="pulsar-canvas"></canvas>
 
-    <!-- Lottie (if pulsar.json present) -->
     <div id="lottie-container"><div id="lottie-anim" style="width:100%;height:100%"></div></div>
 
     <div class="hero-text">
-      <h1>PSR B1919+21</h1>
+      <h1>Lydia Guertin</h1>
       <div class="scroll-hint">scroll to rotate ↓</div>
     </div>
   </div>
 </div>
 
-<section class="info-section content">
-  <div class="data-block">
-    <div class="label">Object Class</div>
-    <p>A pulsar is a highly magnetised rotating neutron star that emits beams of electromagnetic radiation from its magnetic poles.</p>
-  </div>
-  <div class="stat-row">
-    <div class="stat"><span class="number">1.4</span><span class="unit">solar masses</span></div>
-    <div class="stat"><span class="number">~20</span><span class="unit">km diameter</span></div>
-    <div class="stat"><span class="number">716</span><span class="unit">rotations / sec</span></div>
-  </div>
-  <div class="data-block">
-    <div class="label">Discovery</div>
-    <p>The first pulsar was detected in 1967 by Jocelyn Bell Burnell. Its regular pulses were so precise that astronomers briefly considered it might be an extraterrestrial signal — they called it <em>LGM-1</em>.</p>
-  </div>
-</section>
 
-<footer>Replace the canvas pulsar with your After Effects Lottie export — see README.md</footer>
+
 
 <script>
-// ── Starfield ────────────────────────────────────────────────────────────────
+// ── starfield 
 const starCanvas = document.getElementById('stars');
 const sCtx = starCanvas.getContext('2d');
 let stars = [];
@@ -181,29 +163,6 @@ function drawStars(t) {
 resizeStars(); initStars(); requestAnimationFrame(drawStars);
 window.addEventListener('resize', () => { resizeStars(); initStars(); });
 
-// ── Pulsar canvas renderer ───────────────────────────────────────────────────
-//
-// The key insight for the lighthouse-from-afar effect:
-//
-//   When the beam sweeps around the sky, we see it as a long ray extending
-//   away from the source. As it rotates toward us, the ray foreshortens —
-//   we're looking more and more down its length. At the exact moment it
-//   points at us, the beam has zero apparent length: it collapses to a
-//   pure point source that blooms intensely. Then it re-emerges on the
-//   other side and lengthens again.
-//
-//   Mathematically: apparent beam length ∝ |sin(angle)|
-//     (sin = 0 when pointing at/away from viewer, sin = 1 when sideways)
-//
-//   The beam is drawn in 3D perspective using a canvas 2D cone shape.
-//   Each beam half is a triangle: tip at center, base at the far edge.
-//   The base width (apparent thickness) also foreshortens with |sin|.
-//   Brightness/opacity scales inversely — peaks as length → 0.
-//
-//   There are TWO beam halves (opposite poles), so the bloom fires twice
-//   per full rotation (at 0° and 180°) — just like a real pulsar.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const pc = document.getElementById('pulsar-canvas');
 const pCtx = pc.getContext('2d');
 
@@ -217,7 +176,7 @@ function resizePulsar() {
 resizePulsar();
 window.addEventListener('resize', resizePulsar);
 
-// Current rotation angle in radians, updated by scroll
+// current rotation angle in radians, updated by scroll
 let currentAngle = 0;
 
 function drawPulsar(angleDeg) {
@@ -228,66 +187,45 @@ function drawPulsar(angleDeg) {
 
   pCtx.clearRect(0, 0, W, H);
 
-  // ── For each of two poles (0° and 180° apart) ──────────────────────────
-  // poleAngle: actual direction this pole's beam points in screen space
-  // viewFactor: how much it's pointing AT the viewer
-  //   cos(poleAngle) = 1 → straight at viewer → foreshorten to point
-  //   cos(poleAngle) = 0 → sideways → full length visible
-  //   cos(poleAngle) =-1 → straight away → also collapses (pointing away)
-  //
-  // We want the foreshortening based on how close to the viewer's line
-  // of sight: use |cos(angle)| so BOTH straight-at and straight-away
-  // collapse the beam. Only |sin(angle)| determines visible beam length.
-  //
-  // But the BLOOM (brightness peak) should only fire when pointing AT
-  // viewer (cos > 0), not pointing away (cos < 0). So we distinguish:
-  //   - pointing at viewer: blooms bright
-  //   - pointing away:      dims out (beam collapses but goes dark)
-
   const poles = [angle, angle + Math.PI];
 
   poles.forEach(poleAngle => {
     const cosA = Math.cos(poleAngle); // +1 = at viewer, -1 = away
     const sinA = Math.sin(poleAngle);
 
-    // How much beam is foreshortened. |sin| = apparent length factor.
+    // how much beam is foreshortened. |sin| = apparent length factor.
     const lengthFactor = Math.abs(sinA); // 0 = collapsed, 1 = full length
 
-    // Is this pole pointing toward viewer (cosA > 0) or away (cosA < 0)?
+    // pointing toward viewer (cosA > 0) or away (cosA < 0)
     const towardViewer = cosA > 0;
-
-    // Brightness: peaks when pointing at viewer AND foreshortened
-    // Use a smooth curve: bright when cosA ≈ 1, dim when cosA ≈ -1
-    // Remap cosA from [-1,1] to [0,1]
     const viewerFacing = (cosA + 1) / 2; // 0 = away, 1 = at viewer
 
-    // Beam opacity: high when fully sideways (long beam), fades as it foreshortens
-    // BUT we keep a dim beam even when pointing away so you see it sweeping
+    // opacity: high when fully sideways (long beam), fades as it foreshortens
+    // BUT keep a dim beam even when pointing away so you see it sweeping
     const beamAlpha = towardViewer
       ? lengthFactor * 0.85 + 0.05          // toward: fades as it foreshortens
       : lengthFactor * 0.35 + 0.02;         // away: always dimmer
 
-    // Beam length scales with |sin|
+    // length scales with |sin|
     const beamLen = maxLen * lengthFactor;
 
-    // Beam apparent half-width at the tip: also foreshortens, but less aggressively
-    // When foreshortened to a point the cone tip width → 0
+    // apparent half-width at the tip: also shortens, but less aggressively
     const tipWidth = 1.5 + lengthFactor * 3.5;   // px, at the far end
     const baseWidth = 0.5 + lengthFactor * 1.0;  // px, at center (always thin)
 
     if (beamLen > 0.5) {
-      // Direction vector for this pole
+      // vector for this pole
       const dx = Math.cos(poleAngle);
       const dy = Math.sin(poleAngle);
 
-      // Perpendicular
+      // perpendicular
       const px = -dy, py = dx;
 
-      // Beam tip point
+      // beam tip point
       const tx = cx + dx * beamLen;
       const ty = cy + dy * beamLen;
 
-      // Gradient along the beam: bright near core, fades at tip
+      // gradient along the beam: bright near core, fades at tip
       const grad = pCtx.createLinearGradient(cx, cy, tx, ty);
       const r = towardViewer ? 200 : 160;
       const g = towardViewer ? 225 : 200;
@@ -296,7 +234,7 @@ function drawPulsar(angleDeg) {
       grad.addColorStop(0.4, `rgba(${r},${g},${b},${beamAlpha * 0.7})`);
       grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
 
-      // Draw cone shape: thin at base (center), wider at tip
+      // cone shape: thin at base (center), wider at tip
       pCtx.beginPath();
       pCtx.moveTo(cx + px * baseWidth, cy + py * baseWidth);
       pCtx.lineTo(tx + px * tipWidth,  ty + py * tipWidth);
@@ -306,7 +244,7 @@ function drawPulsar(angleDeg) {
       pCtx.fillStyle = grad;
       pCtx.fill();
 
-      // Soft outer glow halo around the beam
+      // soft outer glow halo around the beam
       const glowWidth = tipWidth * (1 + lengthFactor * 2);
       const glowGrad = pCtx.createLinearGradient(cx, cy, tx, ty);
       glowGrad.addColorStop(0,   `rgba(126,184,247,${beamAlpha * 0.4})`);
@@ -323,17 +261,12 @@ function drawPulsar(angleDeg) {
       pCtx.fill();
     }
 
-    // ── Core bloom when beam points at viewer ───────────────────────────
-    // viewerFacing goes 0→1. We want the bloom to be SHARPEST as the beam
-    // collapses to a point (foreshortened) AND is pointing at viewer.
-    // The two conditions multiply: bloom = viewerFacing^2 × (1 - lengthFactor)^2
-    // This peaks precisely at cosA=1, sinA=0 (beam aimed at viewer).
     const bloomIntensity = towardViewer
       ? Math.pow(viewerFacing, 2) * Math.pow(1 - lengthFactor, 2)
       : 0;
 
     if (bloomIntensity > 0.001) {
-      // Multiple radial layers for a physically realistic point bloom
+      // radial layers for a realistic point bloom
       const layers = [
         { r: 2   + bloomIntensity * 4,    a: 0.9 + bloomIntensity * 0.1 },  // hard bright core
         { r: 6   + bloomIntensity * 20,   a: 0.5 * bloomIntensity },         // inner glow
@@ -352,9 +285,6 @@ function drawPulsar(angleDeg) {
       });
     }
   });
-
-  // ── Neutron star core (always present) ──────────────────────────────────
-  // Determine peak bloom from either pole
   const cos0 = Math.cos(angle), cos180 = Math.cos(angle + Math.PI);
   const len0  = Math.abs(Math.sin(angle));
   const len180 = Math.abs(Math.sin(angle + Math.PI));
@@ -366,7 +296,6 @@ function drawPulsar(angleDeg) {
   const coreGlow1  = 8   + peakBloom * 25;
   const coreGlow2  = 20  + peakBloom * 60;
 
-  // White hot center
   const coreG = pCtx.createRadialGradient(cx, cy, 0, cx, cy, coreRadius);
   coreG.addColorStop(0, 'rgba(255,255,255,1)');
   coreG.addColorStop(1, 'rgba(200,230,255,0.9)');
@@ -375,7 +304,6 @@ function drawPulsar(angleDeg) {
   pCtx.fillStyle = coreG;
   pCtx.fill();
 
-  // Inner glow ring
   const ig = pCtx.createRadialGradient(cx, cy, coreRadius, cx, cy, coreGlow1);
   ig.addColorStop(0, `rgba(180,220,255,${0.35 + peakBloom * 0.45})`);
   ig.addColorStop(1, 'rgba(126,184,247,0)');
@@ -384,7 +312,6 @@ function drawPulsar(angleDeg) {
   pCtx.fillStyle = ig;
   pCtx.fill();
 
-  // Outer glow
   const og = pCtx.createRadialGradient(cx, cy, coreGlow1, cx, cy, coreGlow2);
   og.addColorStop(0, `rgba(126,184,247,${0.12 + peakBloom * 0.2})`);
   og.addColorStop(1, 'rgba(126,184,247,0)');
@@ -394,7 +321,7 @@ function drawPulsar(angleDeg) {
   pCtx.fill();
 }
 
-// ── Lottie loader ────────────────────────────────────────────────────────────
+// ── Lottie loader 
 let lottieAnim = null, useLottie = false;
 fetch('./pulsar.json')
   .then(r => { if(!r.ok) throw 0; return r.json(); })
@@ -410,7 +337,7 @@ fetch('./pulsar.json')
   })
   .catch(() => {});
 
-// ── Scroll handler ────────────────────────────────────────────────────────────
+// ── scroll handler 
 const section   = document.getElementById('pulsar-section');
 const trailLine = document.getElementById('trail-line');
 
