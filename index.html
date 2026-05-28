@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pulsar</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Space+Mono&display=swap');
+
+    :root {
+      --space: #020408;
+      --glow: #7eb8f7;
+      --text: #c8d8ef;
+      --muted: #4a5a7a;
+      --accent: #e8c87a;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--space);
+      color: var(--text);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-weight: 300;
+      overflow-x: hidden;
+    }
+
+    #stars {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+    }
+
+    #pulsar-section {
+      position: relative;
+      height: 400vh;
+    }
+
+    #pulsar-sticky {
+      position: sticky; top: 0; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1;
+    }
+
+    #pulsar-canvas {
+      width: min(70vw, 70vh);
+      height: min(70vw, 70vh);
+      display: block;
+    }
+
+    #beam-trail {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    #trail-line {
+      position: absolute; top: 50%; left: 50%;
+      width: 200vmax; height: 2px;
+      transform-origin: left center;
+      background: linear-gradient(to right, transparent, rgba(126,184,247,0.07) 30%, rgba(126,184,247,0.12) 50%, rgba(126,184,247,0.07) 70%, transparent);
+      filter: blur(3px);
+      transform: translateX(-50%) translateY(-50%) rotate(0deg);
+    }
+
+    .content { position: relative; z-index: 2; }
+
+    .hero-text {
+      position: absolute; top: 12%; left: 50%;
+      transform: translateX(-50%);
+      text-align: center; pointer-events: none; white-space: nowrap;
+    }
+    .hero-text h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(0.65rem, 1.5vw, 0.9rem);
+      font-weight: 300; letter-spacing: 0.4em;
+      text-transform: uppercase; color: var(--text); opacity: 0.7;
+    }
+    .hero-text .scroll-hint {
+      margin-top: 0.5rem; font-size: 0.75rem; color: var(--muted);
+      font-family: 'Space Mono', monospace; letter-spacing: 0.2em;
+      animation: pulse-opacity 2s ease-in-out infinite;
+    }
+    @keyframes pulse-opacity { 0%,100%{opacity:0.4} 50%{opacity:0.9} }
+
+    .info-section {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 6rem 2rem; max-width: 640px; margin: 0 auto; gap: 4rem;
+    }
+    .data-block { width: 100%; border-left: 1px solid var(--muted); padding-left: 2rem; }
+    .data-block .label {
+      font-family: 'Space Mono', monospace; font-size: 0.65rem;
+      letter-spacing: 0.25em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 0.75rem;
+    }
+    .data-block p { font-size: clamp(1.1rem,2vw,1.35rem); line-height: 1.8; font-style: italic; }
+    .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; width: 100%; }
+    .stat { text-align: center; }
+    .stat .number { font-family: 'Space Mono', monospace; font-size: clamp(1.4rem,3vw,2rem); color: var(--glow); display: block; }
+    .stat .unit { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: var(--muted); letter-spacing: 0.15em; display: block; margin-top: 0.25rem; }
+    footer {
+      text-align: center; padding: 4rem 2rem;
+      font-family: 'Space Mono', monospace; font-size: 0.6rem;
+      color: var(--muted); letter-spacing: 0.2em;
+      position: relative; z-index: 2;
+    }
+
+    /* Lottie fallback container */
+    #lottie-container { width: min(70vw,70vh); height: min(70vw,70vh); position: absolute; display: none; }
+  </style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div id="beam-trail"><div id="trail-line"></div></div>
+
+<div id="pulsar-section" class="content">
+  <div id="pulsar-sticky">
+
+    <!-- Canvas-drawn pulsar -->
+    <canvas id="pulsar-canvas"></canvas>
+
+    <!-- Lottie (if pulsar.json present) -->
+    <div id="lottie-container"><div id="lottie-anim" style="width:100%;height:100%"></div></div>
+
+    <div class="hero-text">
+      <h1>PSR B1919+21</h1>
+      <div class="scroll-hint">scroll to rotate ↓</div>
+    </div>
+  </div>
+</div>
+
+<section class="info-section content">
+  <div class="data-block">
+    <div class="label">Object Class</div>
+    <p>A pulsar is a highly magnetised rotating neutron star that emits beams of electromagnetic radiation from its magnetic poles.</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><span class="number">1.4</span><span class="unit">solar masses</span></div>
+    <div class="stat"><span class="number">~20</span><span class="unit">km diameter</span></div>
+    <div class="stat"><span class="number">716</span><span class="unit">rotations / sec</span></div>
+  </div>
+  <div class="data-block">
+    <div class="label">Discovery</div>
+    <p>The first pulsar was detected in 1967 by Jocelyn Bell Burnell. Its regular pulses were so precise that astronomers briefly considered it might be an extraterrestrial signal — they called it <em>LGM-1</em>.</p>
+  </div>
+</section>
+
+<footer>Replace the canvas pulsar with your After Effects Lottie export — see README.md</footer>
+
+<script>
+// ── Starfield ────────────────────────────────────────────────────────────────
+const starCanvas = document.getElementById('stars');
+const sCtx = starCanvas.getContext('2d');
+let stars = [];
+function resizeStars() {
+  starCanvas.width  = window.innerWidth;
+  starCanvas.height = window.innerHeight;
+}
+function initStars() {
+  stars = Array.from({length:220}, () => ({
+    x: Math.random() * starCanvas.width,
+    y: Math.random() * starCanvas.height,
+    r: Math.random() * 1.4 + 0.2,
+    a: Math.random() * 0.7 + 0.1,
+    twinkle: Math.random() * Math.PI * 2,
+    speed: Math.random() * 0.015 + 0.005,
+  }));
+}
+function drawStars(t) {
+  sCtx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+  stars.forEach(s => {
+    const alpha = s.a * (0.6 + 0.4 * Math.sin(s.twinkle + t * s.speed));
+    sCtx.beginPath();
+    sCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    sCtx.fillStyle = `rgba(200,220,255,${alpha})`;
+    sCtx.fill();
+  });
+  requestAnimationFrame(drawStars);
+}
+resizeStars(); initStars(); requestAnimationFrame(drawStars);
+window.addEventListener('resize', () => { resizeStars(); initStars(); });
+
+// ── Pulsar canvas renderer ───────────────────────────────────────────────────
+//
+// The key insight for the lighthouse-from-afar effect:
+//
+//   When the beam sweeps around the sky, we see it as a long ray extending
+//   away from the source. As it rotates toward us, the ray foreshortens —
+//   we're looking more and more down its length. At the exact moment it
+//   points at us, the beam has zero apparent length: it collapses to a
+//   pure point source that blooms intensely. Then it re-emerges on the
+//   other side and lengthens again.
+//
+//   Mathematically: apparent beam length ∝ |sin(angle)|
+//     (sin = 0 when pointing at/away from viewer, sin = 1 when sideways)
+//
+//   The beam is drawn in 3D perspective using a canvas 2D cone shape.
+//   Each beam half is a triangle: tip at center, base at the far edge.
+//   The base width (apparent thickness) also foreshortens with |sin|.
+//   Brightness/opacity scales inversely — peaks as length → 0.
+//
+//   There are TWO beam halves (opposite poles), so the bloom fires twice
+//   per full rotation (at 0° and 180°) — just like a real pulsar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const pc = document.getElementById('pulsar-canvas');
+const pCtx = pc.getContext('2d');
+
+function resizePulsar() {
+  const size = Math.min(window.innerWidth * 0.7, window.innerHeight * 0.7);
+  pc.width  = size;
+  pc.height = size;
+  pc.style.width  = size + 'px';
+  pc.style.height = size + 'px';
+}
+resizePulsar();
+window.addEventListener('resize', resizePulsar);
+
+// Current rotation angle in radians, updated by scroll
+let currentAngle = 0;
+
+function drawPulsar(angleDeg) {
+  const angle = angleDeg * Math.PI / 180;
+  const W = pc.width, H = pc.height;
+  const cx = W / 2, cy = H / 2;
+  const maxLen = W * 0.46; // beam reaches ~to edge
+
+  pCtx.clearRect(0, 0, W, H);
+
+  // ── For each of two poles (0° and 180° apart) ──────────────────────────
+  // poleAngle: actual direction this pole's beam points in screen space
+  // viewFactor: how much it's pointing AT the viewer
+  //   cos(poleAngle) = 1 → straight at viewer → foreshorten to point
+  //   cos(poleAngle) = 0 → sideways → full length visible
+  //   cos(poleAngle) =-1 → straight away → also collapses (pointing away)
+  //
+  // We want the foreshortening based on how close to the viewer's line
+  // of sight: use |cos(angle)| so BOTH straight-at and straight-away
+  // collapse the beam. Only |sin(angle)| determines visible beam length.
+  //
+  // But the BLOOM (brightness peak) should only fire when pointing AT
+  // viewer (cos > 0), not pointing away (cos < 0). So we distinguish:
+  //   - pointing at viewer: blooms bright
+  //   - pointing away:      dims out (beam collapses but goes dark)
+
+  const poles = [angle, angle + Math.PI];
+
+  poles.forEach(poleAngle => {
+    const cosA = Math.cos(poleAngle); // +1 = at viewer, -1 = away
+    const sinA = Math.sin(poleAngle);
+
+    // How much beam is foreshortened. |sin| = apparent length factor.
+    const lengthFactor = Math.abs(sinA); // 0 = collapsed, 1 = full length
+
+    // Is this pole pointing toward viewer (cosA > 0) or away (cosA < 0)?
+    const towardViewer = cosA > 0;
+
+    // Brightness: peaks when pointing at viewer AND foreshortened
+    // Use a smooth curve: bright when cosA ≈ 1, dim when cosA ≈ -1
+    // Remap cosA from [-1,1] to [0,1]
+    const viewerFacing = (cosA + 1) / 2; // 0 = away, 1 = at viewer
+
+    // Beam opacity: high when fully sideways (long beam), fades as it foreshortens
+    // BUT we keep a dim beam even when pointing away so you see it sweeping
+    const beamAlpha = towardViewer
+      ? lengthFactor * 0.85 + 0.05          // toward: fades as it foreshortens
+      : lengthFactor * 0.35 + 0.02;         // away: always dimmer
+
+    // Beam length scales with |sin|
+    const beamLen = maxLen * lengthFactor;
+
+    // Beam apparent half-width at the tip: also foreshortens, but less aggressively
+    // When foreshortened to a point the cone tip width → 0
+    const tipWidth = 1.5 + lengthFactor * 3.5;   // px, at the far end
+    const baseWidth = 0.5 + lengthFactor * 1.0;  // px, at center (always thin)
+
+    if (beamLen > 0.5) {
+      // Direction vector for this pole
+      const dx = Math.cos(poleAngle);
+      const dy = Math.sin(poleAngle);
+
+      // Perpendicular
+      const px = -dy, py = dx;
+
+      // Beam tip point
+      const tx = cx + dx * beamLen;
+      const ty = cy + dy * beamLen;
+
+      // Gradient along the beam: bright near core, fades at tip
+      const grad = pCtx.createLinearGradient(cx, cy, tx, ty);
+      const r = towardViewer ? 200 : 160;
+      const g = towardViewer ? 225 : 200;
+      const b = 255;
+      grad.addColorStop(0,   `rgba(${r},${g},${b},${beamAlpha})`);
+      grad.addColorStop(0.4, `rgba(${r},${g},${b},${beamAlpha * 0.7})`);
+      grad.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+
+      // Draw cone shape: thin at base (center), wider at tip
+      pCtx.beginPath();
+      pCtx.moveTo(cx + px * baseWidth, cy + py * baseWidth);
+      pCtx.lineTo(tx + px * tipWidth,  ty + py * tipWidth);
+      pCtx.lineTo(tx - px * tipWidth,  ty - py * tipWidth);
+      pCtx.lineTo(cx - px * baseWidth, cy - py * baseWidth);
+      pCtx.closePath();
+      pCtx.fillStyle = grad;
+      pCtx.fill();
+
+      // Soft outer glow halo around the beam
+      const glowWidth = tipWidth * (1 + lengthFactor * 2);
+      const glowGrad = pCtx.createLinearGradient(cx, cy, tx, ty);
+      glowGrad.addColorStop(0,   `rgba(126,184,247,${beamAlpha * 0.4})`);
+      glowGrad.addColorStop(0.5, `rgba(126,184,247,${beamAlpha * 0.2})`);
+      glowGrad.addColorStop(1,   `rgba(126,184,247,0)`);
+
+      pCtx.beginPath();
+      pCtx.moveTo(cx + px * (baseWidth + 2), cy + py * (baseWidth + 2));
+      pCtx.lineTo(tx + px * glowWidth,  ty + py * glowWidth);
+      pCtx.lineTo(tx - px * glowWidth,  ty - py * glowWidth);
+      pCtx.lineTo(cx - px * (baseWidth + 2), cy - py * (baseWidth + 2));
+      pCtx.closePath();
+      pCtx.fillStyle = glowGrad;
+      pCtx.fill();
+    }
+
+    // ── Core bloom when beam points at viewer ───────────────────────────
+    // viewerFacing goes 0→1. We want the bloom to be SHARPEST as the beam
+    // collapses to a point (foreshortened) AND is pointing at viewer.
+    // The two conditions multiply: bloom = viewerFacing^2 × (1 - lengthFactor)^2
+    // This peaks precisely at cosA=1, sinA=0 (beam aimed at viewer).
+    const bloomIntensity = towardViewer
+      ? Math.pow(viewerFacing, 2) * Math.pow(1 - lengthFactor, 2)
+      : 0;
+
+    if (bloomIntensity > 0.001) {
+      // Multiple radial layers for a physically realistic point bloom
+      const layers = [
+        { r: 2   + bloomIntensity * 4,    a: 0.9 + bloomIntensity * 0.1 },  // hard bright core
+        { r: 6   + bloomIntensity * 20,   a: 0.5 * bloomIntensity },         // inner glow
+        { r: 20  + bloomIntensity * 60,   a: 0.2 * bloomIntensity },         // mid halo
+        { r: 60  + bloomIntensity * 120,  a: 0.07 * bloomIntensity },        // outer halo
+      ];
+      layers.forEach(({r: radius, a: alpha}) => {
+        const grad = pCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        grad.addColorStop(0,   `rgba(230,245,255,${alpha})`);
+        grad.addColorStop(0.4, `rgba(180,220,255,${alpha * 0.5})`);
+        grad.addColorStop(1,   `rgba(126,184,247,0)`);
+        pCtx.beginPath();
+        pCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        pCtx.fillStyle = grad;
+        pCtx.fill();
+      });
+    }
+  });
+
+  // ── Neutron star core (always present) ──────────────────────────────────
+  // Determine peak bloom from either pole
+  const cos0 = Math.cos(angle), cos180 = Math.cos(angle + Math.PI);
+  const len0  = Math.abs(Math.sin(angle));
+  const len180 = Math.abs(Math.sin(angle + Math.PI));
+  const bloom0   = cos0   > 0 ? Math.pow((cos0+1)/2, 2)   * Math.pow(1-len0, 2)   : 0;
+  const bloom180 = cos180 > 0 ? Math.pow((cos180+1)/2, 2) * Math.pow(1-len180, 2) : 0;
+  const peakBloom = Math.max(bloom0, bloom180);
+
+  const coreRadius = 2.5 + peakBloom * 3;
+  const coreGlow1  = 8   + peakBloom * 25;
+  const coreGlow2  = 20  + peakBloom * 60;
+
+  // White hot center
+  const coreG = pCtx.createRadialGradient(cx, cy, 0, cx, cy, coreRadius);
+  coreG.addColorStop(0, 'rgba(255,255,255,1)');
+  coreG.addColorStop(1, 'rgba(200,230,255,0.9)');
+  pCtx.beginPath();
+  pCtx.arc(cx, cy, coreRadius, 0, Math.PI*2);
+  pCtx.fillStyle = coreG;
+  pCtx.fill();
+
+  // Inner glow ring
+  const ig = pCtx.createRadialGradient(cx, cy, coreRadius, cx, cy, coreGlow1);
+  ig.addColorStop(0, `rgba(180,220,255,${0.35 + peakBloom * 0.45})`);
+  ig.addColorStop(1, 'rgba(126,184,247,0)');
+  pCtx.beginPath();
+  pCtx.arc(cx, cy, coreGlow1, 0, Math.PI*2);
+  pCtx.fillStyle = ig;
+  pCtx.fill();
+
+  // Outer glow
+  const og = pCtx.createRadialGradient(cx, cy, coreGlow1, cx, cy, coreGlow2);
+  og.addColorStop(0, `rgba(126,184,247,${0.12 + peakBloom * 0.2})`);
+  og.addColorStop(1, 'rgba(126,184,247,0)');
+  pCtx.beginPath();
+  pCtx.arc(cx, cy, coreGlow2, 0, Math.PI*2);
+  pCtx.fillStyle = og;
+  pCtx.fill();
+}
+
+// ── Lottie loader ────────────────────────────────────────────────────────────
+let lottieAnim = null, useLottie = false;
+fetch('./pulsar.json')
+  .then(r => { if(!r.ok) throw 0; return r.json(); })
+  .then(data => {
+    pc.style.display = 'none';
+    const wrap = document.getElementById('lottie-container');
+    wrap.style.display = 'block';
+    lottieAnim = lottie.loadAnimation({
+      container: document.getElementById('lottie-anim'),
+      renderer: 'svg', loop: false, autoplay: false, animationData: data,
+    });
+    useLottie = true;
+  })
+  .catch(() => {});
+
+// ── Scroll handler ────────────────────────────────────────────────────────────
+const section   = document.getElementById('pulsar-section');
+const trailLine = document.getElementById('trail-line');
+
+function onScroll() {
+  const rect        = section.getBoundingClientRect();
+  const sectionH    = section.offsetHeight - window.innerHeight;
+  const scrolled    = -rect.top;
+  const progress    = Math.max(0, Math.min(1, scrolled / sectionH));
+  const degrees     = progress * 360;
+
+  if (useLottie && lottieAnim) {
+    lottieAnim.goToAndStop(progress * lottieAnim.totalFrames, true);
+  } else {
+    drawPulsar(degrees);
+  }
+
+  trailLine.style.transform =
+    `translateX(-50%) translateY(-50%) rotate(${degrees}deg)`;
+}
+
+window.addEventListener('scroll', onScroll, { passive: true });
+drawPulsar(0);
+onScroll();
+</script>
+</body>
+</html>
